@@ -43,3 +43,7 @@ CONTROLS = { # WASD
 TOKEN_REWARD = 5.
 DEATH_REWARD = -10.
 
+# Paths
+MODEL_DIR = "saved_models"
+PARAMETER_FILE = "parameters.json"
+PARAM_FILE = "weights.h5"

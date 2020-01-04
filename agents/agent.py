@@ -7,3 +7,8 @@ class Agent:
     def act(self, board):
         return NO_ACTION
 
+    def train(self, trajectory):
+        pass
+
+    def save(self, directory):
+        pass

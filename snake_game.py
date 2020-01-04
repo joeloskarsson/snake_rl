@@ -165,7 +165,7 @@ def play_snake(agents, size=GAME_SIZE, display=False, delay=1.0, max_steps=-1,
     trajectories = []
     for i in range(n_agents):
         trajectories.append(Trajectory(
-            states=state_matrix,
+            states=state_matrix[:lifetimes[i]],
             actions=action_matrix[:lifetimes[i], i],
             rewards=reward_matrix[:lifetimes[i], i]
         ))
