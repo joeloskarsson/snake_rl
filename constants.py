@@ -12,7 +12,7 @@ TILE_CHARS = [
     "#", # Snake
 ]
 
-GAME_SIZE = np.array([15,15])
+GAME_SIZE = np.array([7,7])
 
 # Snakes
 START_LENGTH = 3
@@ -38,3 +38,8 @@ CONTROLS = { # WASD
     115: DOWN,
     97: LEFT,
 }
+
+# Rewards
+TOKEN_REWARD = 5.
+DEATH_REWARD = -10.
+

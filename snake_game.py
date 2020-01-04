@@ -1,8 +1,11 @@
 import numpy as np
 import time
+from collections import namedtuple
 
 from constants import *
 from snake import Snake
+
+Trajectory = namedtuple("Trajectory", "states actions rewards")
 
 class SnakeGame:
     def __init__(self, n_agents, size):
@@ -48,8 +51,12 @@ class SnakeGame:
 
     def step(self, actions):
         board = self.get_board()
+
         place_token = False
-        for snake, action in zip(self.snakes, actions):
+        rewards = np.zeros(shape=actions.shape)
+        deaths = np.full(shape=actions.shape, fill_value=False)
+
+        for i, (snake, action) in enumerate(zip(self.snakes, actions)):
             if snake.alive:
                 head_pos = snake.get_new_head_pos(action)
 
@@ -59,11 +66,16 @@ class SnakeGame:
                     # move to tail of other snake
                     snake.kill()
                     board = self.get_board() # Refresh board
+
+                    # Set death reward
+                    rewards[i] = DEATH_REWARD
+                    deaths[i] = True
                 else:
                     # Actually move
                     token = (head_pos == self.token_pos).all()
                     if token:
                         place_token = True
+                        rewards[i] = TOKEN_REWARD
 
                     removed_part = snake.move(action, got_token=token)
 
@@ -76,6 +88,7 @@ class SnakeGame:
             # Replace token
             self.place_token()
 
+        return rewards, deaths
 
     def place_token(self, check=True):
         at_square = -1
@@ -94,8 +107,8 @@ class SnakeGame:
 
         self.token_pos = np.array([y,x])
 
-    def game_over(self):
-        return not any([s.alive for s in self.snakes])
+    def get_alive(self):
+        return [s.alive for s in self.snakes]
 
 
 def play_snake(agents, size=GAME_SIZE, display=False, delay=1.0, max_steps=-1,
@@ -106,9 +119,16 @@ def play_snake(agents, size=GAME_SIZE, display=False, delay=1.0, max_steps=-1,
     # Create game
     n_agents = len(agents)
     game = SnakeGame(n_agents, size)
+    alive_snakes = game.get_alive()
     steps = 0
 
-    while (not game.game_over()) and ((max_steps == -1) or (steps < max_steps)):
+    # For saving trajectories
+    traj_states = []
+    traj_actions = []
+    traj_rewards = []
+    lifetimes = np.zeros(shape=(n_agents), dtype=int)
+
+    while any(alive_snakes) and ((max_steps == -1) or (steps < max_steps)):
         # Render
         if display:
             game.render(screen)
@@ -116,10 +136,39 @@ def play_snake(agents, size=GAME_SIZE, display=False, delay=1.0, max_steps=-1,
 
         # Get agent actions
         board = game.get_board()
-        actions = [agent.act(board) for agent in agents]
-        # TODO, what if agent is dead?
+        actions = np.full(shape=(n_agents), fill_value=NO_ACTION, dtype=int)
+        for i, agent in enumerate(agents):
+            if alive_snakes[i]:
+                actions[i] = agent.act(board)
 
         # Progress game
-        rewards = game.step(actions)
+        rewards, deaths = game.step(actions)
         steps += 1
+
+        # update alive
+        alive_snakes = game.get_alive()
+
+        # Save updates
+        traj_states.append(board)
+        traj_actions.append(actions)
+        traj_rewards.append(rewards)
+
+        death_indices = np.argwhere(deaths)[:,0]
+        for i in death_indices:
+            lifetimes[i] = steps
+
+    # Prepare trajectories
+    state_matrix = np.stack(traj_states, axis=0)
+    action_matrix = np.stack(traj_actions, axis=0)
+    reward_matrix = np.stack(traj_rewards, axis=0)
+
+    trajectories = []
+    for i in range(n_agents):
+        trajectories.append(Trajectory(
+            states=state_matrix,
+            actions=action_matrix[:lifetimes[i], i],
+            rewards=reward_matrix[:lifetimes[i], i]
+        ))
+
+    return trajectories
 
